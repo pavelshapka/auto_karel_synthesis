@@ -53,6 +53,20 @@ arXiv preprint arXiv:1805.04276.
  - подготовьте файлы корректного формата размером 0.1%, 1%, 3%, 10% от оригинала train.json
 
 > Файлы тут [0.1](./1m_6ex_karel/train_p_0.1.json), [1](./1m_6ex_karel/train_p_1.json), [3](./1m_6ex_karel/train_p_3.json), [10](./1m_6ex_karel/train_p_10.json)
+>```python
+>percentiles = {
+>	"0.1": int(ROWS_COUNT * 0.001),
+>	"1": int(ROWS_COUNT * 0.01),
+>	"3": int(ROWS_COUNT * 0.03),
+>	"10": int(ROWS_COUNT * 0.1),
+>}
+
+>for p, row_count in percentiles.items():
+>	with open(f"{DATASET_DIR}/train.json", "r") as f:
+>		with open(f"{DATASET_DIR}/train_p_{p}.json", "w") as f_p:
+>			for _ in range(row_count):
+>				f_p.write(f.readline())
+>```
 
  - оцените объем необходимой RAM
 
@@ -89,7 +103,7 @@ arXiv preprint arXiv:1805.04276.
 
  - где должны быть размещены данные?
 
-> В пункте ниже указано, что можно конфигурировать путь к файлам с данными
+> В пункте ниже указано, что путь к файлам с данными можно передавать в виде параметра
 
  - что нужно сделать для запуска эксперимента, как указать параметры и какие значения выбрать?
 
@@ -143,13 +157,11 @@ train_cmd.py --kernel_size 3 \
 
  - где находится датасет для контроля и для теста?
 
-> Датасет [train](./1m_6ex_karel/train.json) и [test](./1m_6ex_karel/test.json)
+> Датасет [train](./1m_6ex_karel/val.json) и [test](./1m_6ex_karel/test.json)
 
  - как устроен экземпляр данных для обучения?
 
-> Одна Json строка представляет собой батч входных данных.
-> actions - действия в программе
-> inpgrid_json - описание карты
+> Содержит в себе саму программу (набор действий для karel), входную карту и выходную карту
 
 
 Проведите тестовый эксперимент с 0.1% данных и сохраните результаты обучения.
@@ -157,7 +169,7 @@ train_cmd.py --kernel_size 3 \
 Вопросы
  - как указать вид модели?
 
-> Вид модели можно 
+> С помощью флагов `--kernel_size`, `--conv_stack`, `--fc_stack`, `--tgt_embedding_size`, `--lstm_hidden_size`, `--nb_lstm_layers` можно конфигурировать модель
 
  - какие ошибки возникли при запуске и как вы их устранили?
  - сколько эпох вы провели?
