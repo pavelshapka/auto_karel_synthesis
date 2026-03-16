@@ -244,7 +244,7 @@ def train_seq2seq_model(
     #####################
     losses = []
     recent_losses = []
-    best_val_acc = np.NINF
+    best_val_acc = -np.inf
     for epoch_idx in range(0, nb_epochs):
         nb_ios_for_epoch = nb_ios
         # This is definitely not the most efficient way to do it but oh well

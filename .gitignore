@@ -7,3 +7,4 @@ syntax/checker.c
 *.egg-info/
 *.pyc
 *.so
+karel-dataset.zip

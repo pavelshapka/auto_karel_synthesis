@@ -44,46 +44,45 @@ arXiv preprint arXiv:1805.04276.
 Вопросы
  - как правильно называется формат файла train.json?
 
-> JSONLines - каждая строка представляет собой батч записей в формате Json
+> JSONLines - каждая строка представляет одну задачу с несколькими IO-примерами
 
  - как взять часть из файла train.json?
 
-> Считать необхожимое количество строк
+> Прочитать необходимое количество строк
 
  - подготовьте файлы корректного формата размером 0.1%, 1%, 3%, 10% от оригинала train.json
 
-> Файлы тут [0.1](./1m_6ex_karel/train_p_0.1.json), [1](./1m_6ex_karel/train_p_1.json), [3](./1m_6ex_karel/train_p_3.json), [10](./1m_6ex_karel/train_p_10.json)
->```python
->percentiles = {
->	"0.1": int(ROWS_COUNT * 0.001),
->	"1": int(ROWS_COUNT * 0.01),
->	"3": int(ROWS_COUNT * 0.03),
->	"10": int(ROWS_COUNT * 0.1),
->}
-
->for p, row_count in percentiles.items():
->	with open(f"{DATASET_DIR}/train.json", "r") as f:
->		with open(f"{DATASET_DIR}/train_p_{p}.json", "w") as f_p:
->			for _ in range(row_count):
->				f_p.write(f.readline())
->```
+> Файлы тут [0.1](./data/1m_6ex_karel/train_p_0.1.json), [1](./data/1m_6ex_karel/train_p_1.json), [3](./data/1m_6ex_karel/train_p_3.json), [10](./data/1m_6ex_karel/train_p_10.json)
+> ```python
+> percentiles = {
+>   "0_1": int(ROWS_COUNT * 0.001),
+>   "1": int(ROWS_COUNT * 0.01),
+>   "3": int(ROWS_COUNT * 0.03),
+>   "10": int(ROWS_COUNT * 0.1),
+> }
+>
+> for p, row_count in percentiles.items():
+>   with open("./data/1m_6ex_karel/train.json", "r") as f:
+>     with open("./data/1m_6ex_karel/train_p_{p}.json", "w") as f_p:
+>       for _ in range(row_count):
+>         f_p.write(f.readline())
+> ```
 
  - оцените объем необходимой RAM
 
-> Для того, чтобы поместить указанный файл в память, необходимо как минимум потратить память, пропорционально размеру файла, то есть порядка десятка гигабайт
+> Для того, чтобы поместить указанный файл в память, необходимо как минимум потратить память, пропорционально размеру файла, плюс накладные расходы python, то есть порядка нескольких десятков гигабайт, что означает, что в оперативную память это не влезет
 
  - реализуйте загрузку в итератор словарей (паттерн итератор) и измерьте используемый объем RAM
 
->```python
->import json
+> ```python
+> import json
 >
->def get_dataset_row_iter(filename: str):
->	with open(filename, "r") as f:
->		for line in f:
->			yield json.loads(line)
+> def get_dataset_row_iter(filename: str):
+>   with open(filename, "r") as f:
+>     for line in f:
+>       yield json.loads(line)
 >
->
->it = get_dataset_row_iter(f"{DATASET_DIR}/train.json")
+> it = get_dataset_row_iter(f"./data/1m_6ex_karel/train.json")
 > ```
 >
 > При использовании итератора, память будет тратиться только на 1 строку, что составляет несколько килобайт
@@ -95,44 +94,44 @@ arXiv preprint arXiv:1805.04276.
 Вопросы
  - что нужно сделать для установки эксперимента и зависимостей?
 
-> Необходимо добавить репозиторий с экспериментом по инструкции, а дальше провести установку согласно README
->```bash
->pip install cython
->python setup.py install
->```
+> Необходимо добавить репозиторий с экспериментом по инструкции, провести установку согласно [README](./README.md), а также установить pytorch
+> ```bash
+> pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu130
+> pip3 install cython
+> python3 setup.py install
+> ```
 
  - где должны быть размещены данные?
 
-> В пункте ниже указано, что путь к файлам с данными можно передавать в виде параметра
+> Данные должны быть размещены в папке [data](./data)
 
  - что нужно сделать для запуска эксперимента, как указать параметры и какие значения выбрать?
 
-> Запустить команду из README, значения можно оставить по умолчанию
-```bash
-train_cmd.py --kernel_size 3 \
-             --conv_stack "64,64,64" \
-             --fc_stack "512" \
-             --tgt_embedding_size 256 \
-             --lstm_hidden_size 256 \
-             --nb_lstm_layers 2 \
-             \
-             --signal supervised \
-             --nb_ios 5 \
-             --nb_epochs 100 \
-             --optim_alg Adam \
-             --batch_size 128 \
-             --learning_rate 1e-4 \
-             \
-             --train_file data/1m_6ex_karel/train.json \
-             --val_file data/1m_6ex_karel/val.json \
-             --vocab data/1m_6ex_karel/new_vocab.vocab \
-             --result_folder exps/supervised_use_grammar \
-             \
-             --use_grammar \
-             \
-             --use_cuda
-```
-
+> Запустить эксперимент можно с помощью команды, приведенной в [README](./README.md), параметры можно указать просто передав их аргументами, значения оставим такие же, как у авторов
+> ```bash
+> train_cmd.py --kernel_size 3 \
+>             --conv_stack "64,64,64" \
+>             --fc_stack "512" \
+>             --tgt_embedding_size 256 \
+>             --lstm_hidden_size 256 \
+>             --nb_lstm_layers 2 \
+>             \
+>             --signal supervised \
+>             --nb_ios 5 \
+>             --nb_epochs 100 \
+>             --optim_alg Adam \
+>             --batch_size 128 \
+>             --learning_rate 1e-4 \
+>             \
+>             --train_file data/1m_6ex_karel/train.json \
+>             --val_file data/1m_6ex_karel/val.json \
+>             --vocab data/1m_6ex_karel/new_vocab.vocab \
+>             --result_folder exps/supervised_use_grammar \
+>             \
+>             --use_grammar \
+>             \
+>             --use_cuda
+> ```
 
  - что нужно сделать для проверки обученной модели?
 
@@ -147,9 +146,9 @@ train_cmd.py --kernel_size 3 \
  - зачем нужны файлы *.thdump в папке датасета?
 
 > Это кеши, чтобы лишний раз не собирать датасет
->```python3
->    path_to_ds_cache = path_to_dataset.replace('.json', '.thdump')
->```
+> ```python3
+> path_to_ds_cache = path_to_dataset.replace('.json', '.thdump')
+> ```
 
  - что содержит new_vocab?
 
@@ -157,11 +156,24 @@ train_cmd.py --kernel_size 3 \
 
  - где находится датасет для контроля и для теста?
 
-> Датасет [train](./1m_6ex_karel/val.json) и [test](./1m_6ex_karel/test.json)
+> Датасет [train](./data/1m_6ex_karel/val.json) и [test](./data/1m_6ex_karel/test.json)
 
  - как устроен экземпляр данных для обучения?
 
-> Содержит в себе саму программу (набор действий для karel), входную карту и выходную карту
+Экземпляр данных для обучения состоит из:
+- `guid` — id задачи
+- `examples` — IO-примеры для одной программы
+  - `example_index` — индекс примера внутри задачи
+  - `actions` — набор действий на этом примере (как outgrid получилась из ingrid)
+  - `inpgrid_json` / `outgrid_json` — человекочитаемое описание мира:
+    - `rows`, `cols` — размер карты
+    - `hero` — позиция и направление,
+    - `blocked` — стены,
+    - `markers` — маркеры,
+    - `crashed` — упал ли исполнитель в этом состоянии
+  - `inpgrid_tensor` / `outgrid_tensor` — описание мира, но в sparse-тензорном виде для модели ("index:1.0 index:1.0 ...")
+- `program_json` — эталонная программа в AST-форме (дерево команд)
+- `program_tokens` — та же программа, но токенами для seq2seq 
 
 
 Проведите тестовый эксперимент с 0.1% данных и сохраните результаты обучения.
@@ -169,12 +181,45 @@ train_cmd.py --kernel_size 3 \
 Вопросы
  - как указать вид модели?
 
-> С помощью флагов `--kernel_size`, `--conv_stack`, `--fc_stack`, `--tgt_embedding_size`, `--lstm_hidden_size`, `--nb_lstm_layers` можно конфигурировать модель
+> С помощью параметров при запуске: `--kernel_size`, `--conv_stack`, `--fc_stack`, `--tgt_embedding_size`, `--lstm_hidden_size`, `--nb_lstm_layers`
 
  - какие ошибки возникли при запуске и как вы их устранили?
+
+> 1. ***TypeError: empty() received an invalid combination of arguments - got (tuple, dtype=NoneType, device=NoneType), but expected one of:***, возникающая в ***File "/home/xbloody/.venv/lib/python3.12/site-packages/G_RLForNPS-0.0.1.dev1-py3.12-linux-x86_64.egg/nps/network.py", line 705, in __init__***
+>
+> 2. ***AttributeError: np.NINF was removed in the NumPy 2.0 release. Use -np.inf instead***, возникающая в ***File "/home/xbloody/.venv/lib/python3.12/site-packages/G_RLForNPS-0.0.1.dev1-py3.12-linux-x86_64.egg/nps/train.py", line 247, in train_seq2seq_model***
+>
+> 3. ***NameError: name 'xrange' is not defined***, возникающая в ***File "/home/xbloody/.venv/lib/python3.12/site-packages/G_RLForNPS-0.0.1.dev1-py3.12-linux-x86_64.egg/nps/data.py", line 98, in shuffle_dataset***
+>
+> 4. ***TypeError: Concatenation operation is not implemented for NumPy arrays, use np.concatenate() instead. Please do not rely on this error; it may not be given on all Python implementations***, возникающая в ***File "/home/xbloody/.venv/lib/python3.12/site-packages/G_RLForNPS-0.0.1.dev1-py3.12-linux-x86_64.egg/karel/world.py", line 295, in fromPytorchTensor***
+>
+> 5. ***TypeError: conv2d() received an invalid combination of arguments - got (Tensor, Parameter, Parameter, tuple, tuple, tuple, int), but expected one of: * (Tensor input, Tensor weight, Tensor bias = None, tuple of ints stride = 1, tuple of ints padding = 0, tuple of ints dilation = 1, int groups = 1) didn't match because some of the arguments have invalid types: (Tensor, Parameter, Parameter, tuple of (int, int), tuple of (float, float), tuple of (int, int), int)***, возникающая в ***File "/home/xbloody/.venv/lib/python3.12/site-packages/G_RLForNPS-0.0.1.dev1-py3.12-linux-x86_64.egg/nps/network.py", line 58, in forward***
+>
+> 6. ***RuntimeError: masked_fill only supports boolean masks, but got dtype Byte***, возникающая в ***File "/home/xbloody/.venv/lib/python3.12/site-packages/G_RLForNPS-0.0.1.dev1-py3.12-linux-x86_64.egg/nps/network.py", line 268, in forward***
+>
+> 7. ***IndexError: invalid index of a 0-dim tensor. Use `tensor.item()` in Python or `tensor.item<T>()` in C++ to convert a 0-dim tensor to a number***, возникающая в файле ***File "/home/xbloody/.venv/lib/python3.12/site-packages/G_RLForNPS-0.0.1.dev1-py3.12-linux-x86_64.egg/nps/training_functions.py", line 30, in do_supervised_minibatch***
+>
+> 8. ***_pickle.UnpicklingError: Weights only load failed. This file can still be loaded, to do so you have two options, do those steps only if you trust the source of the checkpoint. (1) In PyTorch 2.6, we changed the default value of the `weights_only` argument in `torch.load` from `False` to `True`. Re-running `torch.load` with `weights_only` set to `False` will likely succeed, but it can result in arbitrary code execution. Do it only if you got the file from a trusted source. (2) Alternatively, to load with `weights_only=True` please check the recommended steps in the following error message. WeightsUnpickler error: Unsupported global: GLOBAL nps.network.IOs2Seq was not an allowed global by default. Please use `torch.serialization.add_safe_globals([nps.network.IOs2Seq])` or the `torch.serialization.safe_globals([nps.network.IOs2Seq])` context manager to allowlist this global if you trust this class/function***, возникающая в ***File "/home/xbloody/.venv/lib/python3.12/site-packages/G_RLForNPS-0.0.1.dev1-py3.12-linux-x86_64.egg/nps/evaluate.py", line 90, in evaluate_model***
+>
+> 9. ***ValueError: too many values to unpack (expected 2)***, возникающая в файле ***File "/home/xbloody/.venv/lib/python3.12/site-packages/G_RLForNPS-0.0.1.dev1-py3.12-linux-x86_64.egg/nps/data.py", line 141, in get_minibatch***
+>
+> 10. ***TypeError: only integer tensors of a single element can be converted to an index***, возникающая в файле ***File "/home/xbloody/.venv/lib/python3.12/site-packages/G_RLForNPS-0.0.1.dev1-py3.12-linux-x86_64.egg/nps/network.py", line 358, in beam_sample***
+>
+> 11. ***TypeError: list indices must be integers or slices, not float***, возникающая в файле ***File "/home/xbloody/.venv/lib/python3.12/site-packages/G_RLForNPS-0.0.1.dev1-py3.12-linux-x86_64.egg/nps/network.py", line 358, in beam_sample***
+>
+> 12. ***AttributeError: 'dict' object has no attribute 'has_key', возникающая в файле ***File "/home/xbloody/.venv/lib/python3.12/site-packages/G_RLForNPS-0.0.1.dev1-py3.12-linux-x86_64.egg/karel/ast.py", line 10, in __init__***
+
  - сколько эпох вы провели?
+
+> Провел 10 эпох, потому что данных сильно меньше
+
  - где сохранены результаты и логи эксперимента?
+
+> В файле [logs.txt](./exps/supervised_use_grammar/logs.txt)
+
  - какого качества получен результат?
+
+ > Accuracy низкое (0) и лосс достаточно большой (1.11384). Качество низкое из-за очень маленького датасета
 
 Подсказки
 

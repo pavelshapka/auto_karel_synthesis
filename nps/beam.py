@@ -1,5 +1,4 @@
 import torch
-from torch.autograd import Variable
 import heapq
 import math
 import random
@@ -70,10 +69,10 @@ class Beam(object):
         self.parent_beam_idxs = None
 
     def get_next_input(self):
-        return Variable(self.next_beam_input, volatile=True), self.next_beam_input_list
+        return self.next_beam_input, self.next_beam_input_list
 
     def get_parent_beams(self):
-        return Variable(self.parent_beam_idxs, volatile=True)
+        return self.parent_beam_idxs
 
     def advance(self, wordLprobas):
         '''
@@ -143,7 +142,7 @@ class Beam(object):
             bestScores = torch.masked_select(bestScores, to_keep)
             bestScoresId = torch.masked_select(bestScoresId, to_keep)
         # Because we flattened the beam x expandword array, we need to reidentify
-        prevBeam = bestScoresId / numExpandWords
+        prevBeam = bestScoresId // numExpandWords
         next_input = bestScoresId - prevBeam * numExpandWords
         self.scores = bestScores
         self.parent_beam_idxs = prevBeam

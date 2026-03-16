@@ -167,33 +167,33 @@ class PySyntaxChecker:
                                       T2I["c("], T2I["c)"], T2I["i("], T2I["i)"],
                                       T2I["WHILE"], T2I["w("], T2I["REPEAT"], T2I["r("],
                                       T2I["not"], T2I["<pad>"])
-        tt = torch.cuda if use_cuda else torch
+        device = torch.device("cuda" if use_cuda else "cpu")
         self.vocab_size = len(T2I)
         self.mandatories_mask = {}
         for mand_tkn in possible_mandatories:
-            mask = tt.ByteTensor(1,1,self.vocab_size).fill_(1)
-            mask[0,0,T2I[mand_tkn]] = 0
+            mask = torch.ones((1, 1, self.vocab_size), dtype=torch.bool, device=device)
+            mask[0,0,T2I[mand_tkn]] = False
             self.mandatories_mask[T2I[mand_tkn]] = mask
         self.act_next_masks = {}
         for close_tkn in self.close_parens:
-            mask = tt.ByteTensor(1,1,self.vocab_size).fill_(1)
-            mask[0,0,close_tkn] = 0
+            mask = torch.ones((1, 1, self.vocab_size), dtype=torch.bool, device=device)
+            mask[0,0,close_tkn] = False
             for effect_idx in self.effect_acts:
-                mask[0,0,effect_idx] = 0
+                mask[0,0,effect_idx] = False
             for flowlead_idx in self.flow_lead:
-                mask[0,0,flowlead_idx] = 0
+                mask[0,0,flowlead_idx] = False
             self.act_next_masks[close_tkn] = mask
-        self.range_mask = tt.ByteTensor(1,1,self.vocab_size).fill_(1)
+        self.range_mask = torch.ones((1, 1, self.vocab_size), dtype=torch.bool, device=device)
         for ridx in self.range_cste:
-            self.range_mask[0,0,ridx] = 0
-        self.boolnext_mask = tt.ByteTensor(1,1,self.vocab_size).fill_(1)
+            self.range_mask[0,0,ridx] = False
+        self.boolnext_mask = torch.ones((1, 1, self.vocab_size), dtype=torch.bool, device=device)
         for bcheck_idx in self.bool_checks:
-            self.boolnext_mask[0,0,bcheck_idx] = 0
-        self.boolnext_mask[0,0,self.vocab.not_tkn] = 0
+            self.boolnext_mask[0,0,bcheck_idx] = False
+        self.boolnext_mask[0,0,self.vocab.not_tkn] = False
         self.postcond_open_paren_masks = {}
         for tkn in self.postcond_open_paren:
-            mask = tt.ByteTensor(1,1,self.vocab_size).fill_(1)
-            mask[0,0,tkn] = 0
+            mask = torch.ones((1, 1, self.vocab_size), dtype=torch.bool, device=device)
+            mask[0,0,tkn] = False
             self.postcond_open_paren_masks[tkn] = mask
 
 
@@ -302,14 +302,11 @@ class PySyntaxChecker:
             self.forward(state, inp_sequence[0])
             return self.allowed_tokens(state)
         else:
-            tt = torch.cuda if self.use_cuda else torch
             mask_infeasible_list = []
-            mask_infeasible = tt.ByteTensor(1, 1, self.vocab_size)
             for stp_idx, inp in enumerate(inp_sequence):
                 self.forward(state, inp)
                 mask_infeasible_list.append(self.allowed_tokens(state))
-            torch.cat(mask_infeasible_list, 1, out=mask_infeasible)
-            return mask_infeasible
+            return torch.cat(mask_infeasible_list, 1)
 
     def get_initial_checker_state(self):
         return CheckerState(STATE_MANDATORY_NEXT, self.vocab.start_tkn,

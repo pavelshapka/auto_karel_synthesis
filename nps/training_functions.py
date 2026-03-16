@@ -1,7 +1,6 @@
 import itertools
 import torch
 import torch.autograd as autograd
-from torch.autograd import Variable
 
 
 def do_supervised_minibatch(model,
@@ -27,7 +26,7 @@ def do_supervised_minibatch(model,
     loss.backward()
 
     # Return the value of the loss over the minibatch for monitoring
-    return loss.data[0]
+    return loss.data.item()
 
 def do_syntax_weighted_minibatch(model,
                                  # Source
@@ -62,7 +61,7 @@ def do_syntax_weighted_minibatch(model,
     loss.backward()
 
     # Return the value of the loss over the minibatch for monitoring
-    return loss.data[0]
+    return loss.item()
 
 def do_rl_minibatch(model,
                     # Source
@@ -152,8 +151,8 @@ def do_rl_minibatch_two_steps(model,
         out_lines = [
             line[1:] + [pad_idx] * (ib_max_len - len(line)) for line in lines
         ]
-        in_tgt_seq = Variable(torch.LongTensor(inp_lines))
-        out_tgt_seq = Variable(torch.LongTensor(out_lines))
+        in_tgt_seq = torch.LongTensor(inp_lines)
+        out_tgt_seq = torch.LongTensor(out_lines)
         if use_cuda:
             in_tgt_seq, out_tgt_seq = in_tgt_seq.cuda(), out_tgt_seq.cuda()
         out_care_mask = (out_tgt_seq != pad_idx)
@@ -204,12 +203,11 @@ def do_beam_rl(model,
     batch_reward = 0
     use_cuda = inp_grids.is_cuda
     tt = torch.cuda if use_cuda else torch
-    vol_inp_grids = Variable(inp_grids.data, volatile=True)
-    vol_out_grids = Variable(out_grids.data, volatile=True)
     # Get the programs from the beam search
-    decoded = model.beam_sample(vol_inp_grids, vol_out_grids,
-                                tgt_start_idx, tgt_end_idx, max_len,
-                                beam_size, beam_size)
+    with torch.no_grad():
+        decoded = model.beam_sample(inp_grids, out_grids,
+                                    tgt_start_idx, tgt_end_idx, max_len,
+                                    beam_size, beam_size)
 
     # For each element in the batch, get the version of the log proba that can use autograd.
     for start_pos in range(0, len(decoded), rl_inner_batch):
@@ -239,8 +237,8 @@ def do_beam_rl(model,
         out_lines = [
             line[1:] + [pad_idx] * (ib_max_len - len(line)) for line in lines
         ]
-        in_tgt_seq = Variable(torch.LongTensor(inp_lines))
-        out_tgt_seq = Variable(torch.LongTensor(out_lines))
+        in_tgt_seq = torch.LongTensor(inp_lines)
+        out_tgt_seq = torch.LongTensor(out_lines)
         if use_cuda:
             in_tgt_seq, out_tgt_seq = in_tgt_seq.cuda(), out_tgt_seq.cuda()
         out_care_mask = (out_tgt_seq != pad_idx)
@@ -278,7 +276,7 @@ def do_beam_rl(model,
         # We put a minus sign here because we want to maximize the reward.
         (-inner_batch_reward).backward()
 
-        batch_reward += inner_batch_reward.data[0]
+        batch_reward += inner_batch_reward.item()
 
     return batch_reward
 

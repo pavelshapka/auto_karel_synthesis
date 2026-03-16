@@ -4,7 +4,6 @@ import random
 import torch
 import os
 from tqdm import tqdm
-from torch.autograd import Variable
 from karel.world import World
 from itertools import chain
 
@@ -95,7 +94,7 @@ def shuffle_dataset(dataset, batch_size, randomize=True):
     bucket_fun = lambda x: len(x[1]) / 5
     pairs.sort(key=bucket_fun, reverse=True)
     grouped_pairs = [pairs[pos: pos + batch_size]
-                     for pos in xrange(0,len(pairs), batch_size)]
+                     for pos in range(0,len(pairs), batch_size)]
     if randomize:
         to_shuffle = grouped_pairs[:-1]
         random.shuffle(to_shuffle)
@@ -136,7 +135,8 @@ def get_minibatch(dataset, sp_idx, batch_size,
         sample_out_worlds = []
         sample_test_inp_worlds = []
         sample_test_out_worlds = []
-        for inp_grid_desc, out_grid_desc in sample[:nb_ios]:
+        for example in sample[:nb_ios]:
+            inp_grid_desc, out_grid_desc = example[:2]
 
             # Do the inp_grid
             inp_grid = grid_desc_to_tensor(inp_grid_desc)
@@ -147,7 +147,8 @@ def get_minibatch(dataset, sp_idx, batch_size,
             sample_out_grids.append(out_grid)
             sample_inp_worlds.append(World.fromPytorchTensor(inp_grid))
             sample_out_worlds.append(World.fromPytorchTensor(out_grid))
-        for inp_grid_desc, out_grid_desc in sample[nb_ios:]:
+        for example in sample[nb_ios:]:
+            inp_grid_desc, out_grid_desc = example[:2]
             # Do the inp_grid
             inp_grid = grid_desc_to_tensor(inp_grid_desc)
             # Do the out_grid
@@ -163,8 +164,8 @@ def get_minibatch(dataset, sp_idx, batch_size,
         out_worlds.append(sample_out_worlds)
         inp_test_worlds.append(sample_test_inp_worlds)
         out_test_worlds.append(sample_test_out_worlds)
-    inp_grids = Variable(torch.stack(inp_grids, 0), volatile=volatile_vars)
-    out_grids = Variable(torch.stack(out_grids, 0), volatile=volatile_vars)
+    inp_grids = torch.stack(inp_grids, 0)
+    out_grids = torch.stack(out_grids, 0)
 
     # Prepare the target sequences
     targets = dataset["targets"][sp_idx:sp_idx+batch_size]
@@ -186,8 +187,8 @@ def get_minibatch(dataset, sp_idx, batch_size,
         line[1:] + [pad_idx] * (max_len - len(line)) for line in lines
     ]
 
-    in_tgt_seq = Variable(torch.LongTensor(input_lines), volatile=volatile_vars)
-    out_tgt_seq = Variable(torch.LongTensor(output_lines), volatile=volatile_vars)
+    in_tgt_seq = torch.LongTensor(input_lines)
+    out_tgt_seq = torch.LongTensor(output_lines)
 
     return inp_grids, out_grids, in_tgt_seq, input_lines, out_tgt_seq, \
         inp_worlds, out_worlds, targets, inp_test_worlds, out_test_worlds

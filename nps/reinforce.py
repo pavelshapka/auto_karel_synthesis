@@ -3,8 +3,6 @@ import torch
 import numpy as np
 import torch.nn.functional as F
 
-from torch.autograd import Variable
-
 
 class Rolls(object):
 
@@ -332,8 +330,6 @@ def expected_rew_renorm(prediction_lpbs, prediction_reward_list):
         prediction_reward = torch.cuda.FloatTensor(prediction_reward_list)
     else:
         prediction_reward = torch.FloatTensor(prediction_reward_list)
-    prediction_reward = Variable(prediction_reward, requires_grad=False)
-
     return torch.dot(prediction_pbs, prediction_reward)
 
 
@@ -365,12 +361,11 @@ def n_samples_expected_genrew(nb_samples_in_bag):
 
         ## Get the possible reward values
         unique_rewards = np.unique(prediction_reward_list)
-        per_reward_proba = Variable(tt.FloatTensor(unique_rewards.shape[0]))
+        per_reward_proba = tt.FloatTensor(unique_rewards.shape[0])
         # Note: np.unique returns its results sorted
 
         ## Get the probability associated with each reward value
-        rewards_tensor = Variable(tt.FloatTensor(prediction_reward_list),
-                                  requires_grad=False)
+        rewards_tensor = tt.FloatTensor(prediction_reward_list)
         for idx, rew in enumerate(unique_rewards):
             this_rew_mask = (rewards_tensor == rew)
             # Sum the proba of all possible paths leading to the same reward,
@@ -397,8 +392,7 @@ def n_samples_expected_genrew(nb_samples_in_bag):
                 to_mod - to_sub
             ])
 
-            var_unique_rewards = Variable(torch.from_numpy(unique_rewards).float(),
-                                          requires_grad=False)
+            var_unique_rewards = torch.from_numpy(unique_rewards).float()
             if prediction_lpbs.is_cuda:
                 var_unique_rewards = var_unique_rewards.cuda()
             expected_bag_rew = torch.dot(var_unique_rewards, bag_reward_proba)
@@ -438,8 +432,6 @@ def n_samples_expected_1m1rew(nb_samples_in_bag):
             prediction_reward = torch.cuda.FloatTensor(prediction_reward_list)
         else:
             prediction_reward = torch.FloatTensor(prediction_reward_list)
-        prediction_reward = Variable(prediction_reward, requires_grad=False)
-
         negs_mask = (prediction_reward == -1)
         prob_negs = prediction_pbs.masked_select(negs_mask)
         prob_of_neg_rew_per_sp = prob_negs.sum()

@@ -3,8 +3,6 @@ from __future__ import division
 import json
 import os
 import torch
-
-from torch.autograd import Variable
 from tqdm import tqdm
 
 from nps.data import load_input_file, get_minibatch, shuffle_dataset
@@ -72,7 +70,7 @@ def evaluate_model(model_weights,
             out_file_content = out_file.read()
             print("Using cached result from {}".format(all_outputs_path[0]))
             print("Greedy select accuracy: {}".format(out_file_content))
-            return
+            return float(out_file_content.strip())
 
     # Load the vocabulary of the trained model
     dataset, vocab = load_input_file(dataset_path, vocabulary_path)
@@ -87,7 +85,7 @@ def evaluate_model(model_weights,
         # Is it failing?
         model = torch.load(model_weights, map_location=lambda storage, loc: storage)
     else:
-        model = torch.load(model_weights)
+        model = torch.load(model_weights, weights_only=False)
         model.cuda()
     # And put it into evaluation mode
     model.eval()
