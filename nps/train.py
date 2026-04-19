@@ -264,6 +264,7 @@ def train_seq2seq_model(
         shuffle_batches=True,
         num_workers=8,
     )
+    step = 0
     for epoch_idx in range(0, nb_epochs):
         for batch_idx, batch_data in enumerate(tqdm(dataloader)):
             
@@ -349,10 +350,11 @@ def train_seq2seq_model(
             else:
                 raise NotImplementedError("Unknown Training method")
             optimizer.step()
+            step += 1
             if signal == TrainSignal.SUPERVISED:
-                writer.add_scalar('train/loss', minibatch_loss, batch_idx)
+                writer.add_scalar('train/loss', minibatch_loss, step)
             elif signal == TrainSignal.RL or signal == TrainSignal.BEAM_RL:
-                writer.add_scalar('train/reward', minibatch_reward, batch_idx)
+                writer.add_scalar('train/reward', minibatch_reward, step)
             is_last_batch = (batch_idx == len(dataloader) - 1)
             if (batch_idx % log_frequency == log_frequency-1 and len(recent_losses) > 0) or is_last_batch:
                 avg_loss = sum(recent_losses)/len(recent_losses)
@@ -360,9 +362,9 @@ def train_seq2seq_model(
                     epoch_idx, batch_idx, avg_loss)
                 )
                 if signal == TrainSignal.SUPERVISED:
-                    writer.add_scalar('train_avg/loss', avg_loss, batch_idx)
+                    writer.add_scalar('train_avg/loss', avg_loss, step)
                 elif signal == TrainSignal.RL or signal == TrainSignal.BEAM_RL:
-                    writer.add_scalar('train_avg/reward', avg_loss, batch_idx)
+                    writer.add_scalar('train_avg/reward', avg_loss, step)
 
                 losses.extend(recent_losses)
                 recent_losses = []
