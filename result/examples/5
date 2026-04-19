@@ -1,0 +1,6 @@
+DEF run 
+    m( pickMarker IFELSE c( rightIsClear c) 
+        i( move i)
+    ELSE 
+        e( move e)
+    m)

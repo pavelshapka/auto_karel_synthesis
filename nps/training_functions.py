@@ -120,9 +120,14 @@ def do_rl_minibatch_two_steps(model,
     '''
     use_cuda = inp_grids.is_cuda
     tt = torch.cuda if use_cuda else torch
-    rolls = model.sample_model(inp_grids, out_grids,
-                               tgt_start_idx, tgt_end_idx, max_len,
-                               nb_rollouts, vol=True)
+    try:
+        rolls = model.sample_model(inp_grids, out_grids,
+                                   tgt_start_idx, tgt_end_idx, max_len,
+                                   nb_rollouts, vol=True)
+    except (AssertionError, KeyError, IndexError) as e:
+        import logging
+        logging.warning("sample_model do_rl_minibatch_two_steps: %s", e)
+        return 0.0
     for roll, env in zip(rolls, envs):
         # Assign the rewards for each sample
         roll.assign_rewards(env, [])
@@ -203,11 +208,16 @@ def do_beam_rl(model,
     batch_reward = 0
     use_cuda = inp_grids.is_cuda
     tt = torch.cuda if use_cuda else torch
-    # Get the programs from the beam search
-    with torch.no_grad():
-        decoded = model.beam_sample(inp_grids, out_grids,
-                                    tgt_start_idx, tgt_end_idx, max_len,
-                                    beam_size, beam_size)
+    try:
+        # Get the programs from the beam search
+        with torch.no_grad():
+            decoded = model.beam_sample(inp_grids, out_grids,
+                                        tgt_start_idx, tgt_end_idx, max_len,
+                                        beam_size, beam_size)
+    except (AssertionError, KeyError, IndexError) as e:
+        import logging
+        logging.warning("beam_sample do_beam_rl: %s", e)
+        return 0.0
 
     # For each element in the batch, get the version of the log proba that can use autograd.
     for start_pos in range(0, len(decoded), rl_inner_batch):

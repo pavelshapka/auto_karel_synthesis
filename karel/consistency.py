@@ -11,7 +11,7 @@ class Simulator(object):
         self.emulator = FastEmulator(max_ticks=200)
 
     def tkn_prog_from_idx(self, prg_idxs):
-        return [self.idx_to_token[idx] for idx in prg_idxs]
+        return [self.idx_to_token[int(idx)] for idx in prg_idxs]
 
     def get_prog_ast(self, prg_idxs):
         prg_tkns = self.tkn_prog_from_idx(prg_idxs)

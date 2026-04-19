@@ -1,0 +1,4 @@
+DEF run 
+    m( move pickMarker REPEAT R=4 
+        r( turnLeft r)
+    m)

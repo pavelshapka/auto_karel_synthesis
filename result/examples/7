@@ -1,0 +1,4 @@
+DEF run 
+    m( move IF c( frontIsClear c) 
+        i( putMarker i)
+    m)

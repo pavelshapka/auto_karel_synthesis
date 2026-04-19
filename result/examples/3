@@ -1,0 +1,4 @@
+DEF run 
+    m( IF c( not c( leftIsClear c) c) 
+        i( move i)
+    move pickMarker m)

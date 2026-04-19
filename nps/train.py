@@ -26,6 +26,9 @@ from nps.training_functions import (do_supervised_minibatch,
 from nps.evaluate import evaluate_model
 from syntax.checker import PySyntaxChecker
 from karel.consistency import Simulator
+from karel.world import World
+
+from nps.data_loader import create_dataloader
 
 class TrainSignal(object):
     SUPERVISED = "supervised"
@@ -209,7 +212,7 @@ def train_seq2seq_model(
             torch.save(model, weight_file)
     else:
         model = torch.load(initialisation,
-                           map_location=lambda storage, loc: storage)
+                           map_location=lambda storage, loc: storage, weights_only=False)
     if use_grammar:
         model.set_syntax_checker(syntax_checker)
     tgt_start = vocab["tkn2idx"]["<s>"]
@@ -251,24 +254,37 @@ def train_seq2seq_model(
     losses = []
     recent_losses = []
     best_val_acc = -np.inf
+    dataloader = create_dataloader(
+        dataset,
+        batch_size,
+        tgt_start,
+        tgt_end,
+        tgt_pad,
+        nb_ios,
+        shuffle_batches=True,
+        num_workers=8,
+        load_worlds=(signal == TrainSignal.RL or signal == TrainSignal.BEAM_RL)
+    )
+    step = 0
     for epoch_idx in range(0, nb_epochs):
-        nb_ios_for_epoch = nb_ios
-        # This is definitely not the most efficient way to do it but oh well
-        dataset = shuffle_dataset(dataset, batch_size)
-        for sp_idx in tqdm(range(0, len(dataset["sources"]), batch_size)):
-
-            batch_idx = int(sp_idx/batch_size)
+        for batch_idx, batch_data in enumerate(tqdm(dataloader)):
+            
             optimizer.zero_grad()
 
+            if signal == TrainSignal.RL or signal == TrainSignal.BEAM_RL:
+                inp_grids, out_grids, in_tgt_seq, in_tgt_seq_list, out_tgt_seq, \
+                    targets, inp_test_grids, out_test_grids, \
+                    inp_worlds, out_worlds, inp_test_worlds, out_test_worlds = batch_data
+            else:
+                inp_grids, out_grids, in_tgt_seq, in_tgt_seq_list, out_tgt_seq, \
+                    targets, inp_test_grids, out_test_grids = batch_data
+
             if signal == TrainSignal.SUPERVISED:
-                inp_grids, out_grids, \
-                    in_tgt_seq, in_tgt_seq_list, out_tgt_seq, \
-                    _, _, _, _, _ = get_minibatch(dataset, sp_idx, batch_size,
-                                                  tgt_start, tgt_end, tgt_pad,
-                                                  nb_ios_for_epoch)
                 if use_cuda:
-                    inp_grids, out_grids = inp_grids.cuda(), out_grids.cuda()
-                    in_tgt_seq, out_tgt_seq = in_tgt_seq.cuda(), out_tgt_seq.cuda()
+                    inp_grids = inp_grids.cuda(non_blocking=True)
+                    out_grids = out_grids.cuda(non_blocking=True)
+                    in_tgt_seq = in_tgt_seq.cuda(non_blocking=True)
+                    out_tgt_seq = out_tgt_seq.cuda(non_blocking=True)
                 if learn_syntax:
                     minibatch_loss = do_syntax_weighted_minibatch(model,
                                                                   inp_grids, out_grids,
@@ -282,15 +298,9 @@ def train_seq2seq_model(
                                                              out_tgt_seq, loss_criterion)
                 recent_losses.append(minibatch_loss)
             elif signal == TrainSignal.RL or signal == TrainSignal.BEAM_RL:
-                inp_grids, out_grids, \
-                    _, _, _, \
-                    inp_worlds, out_worlds, \
-                    targets, \
-                    inp_test_worlds, out_test_worlds = get_minibatch(dataset, sp_idx, batch_size,
-                                                                     tgt_start, tgt_end, tgt_pad,
-                                                                     nb_ios_for_epoch)
                 if use_cuda:
-                    inp_grids, out_grids = inp_grids.cuda(), out_grids.cuda()
+                    inp_grids = inp_grids.cuda(non_blocking=True)
+                    out_grids = out_grids.cuda(non_blocking=True)
                 # We use 1/nb_rollouts as the reward to normalize wrt the
                 # size of the rollouts
                 if signal == TrainSignal.RL:
@@ -315,17 +325,17 @@ def train_seq2seq_model(
                     raise NotImplementedError("Unknown environment type")
 
                 if signal == TrainSignal.RL:
-                    minibatch_reward = do_rl_minibatch(model,
-                                                       inp_grids, out_grids,
-                                                       envs,
-                                                       tgt_start, tgt_end, max_len,
-                                                       nb_rollouts)
-                    # minibatch_reward = do_rl_minibatch_two_steps(model,
-                    #                                              inp_grids, out_grids,
-                    #                                              envs,
-                    #                                              tgt_start, tgt_end, tgt_pad,
-                    #                                              max_len, nb_rollouts,
-                    #                                              rl_inner_batch)
+                    # minibatch_reward = do_rl_minibatch(model,
+                    #                                    inp_grids, out_grids,
+                    #                                    envs,
+                    #                                    tgt_start, tgt_end, max_len,
+                    #                                    nb_rollouts)
+                    minibatch_reward = do_rl_minibatch_two_steps(model,
+                                                                 inp_grids, out_grids,
+                                                                 envs,
+                                                                 tgt_start, tgt_end, tgt_pad,
+                                                                 max_len, nb_rollouts,
+                                                                 rl_inner_batch)
                 elif signal == TrainSignal.BEAM_RL:
                     minibatch_reward = do_beam_rl(model,
                                                   inp_grids, out_grids, targets,
@@ -338,16 +348,21 @@ def train_seq2seq_model(
             else:
                 raise NotImplementedError("Unknown Training method")
             optimizer.step()
-            if (batch_idx % log_frequency == log_frequency-1 and len(recent_losses) > 0) or \
-               (len(dataset["sources"]) - sp_idx ) < batch_size:
+            step += 1
+            # if signal == TrainSignal.SUPERVISED:
+            #     writer.add_scalar('train/loss', minibatch_loss, step)
+            # elif signal == TrainSignal.RL or signal == TrainSignal.BEAM_RL:
+            #     writer.add_scalar('train/reward', minibatch_reward, step)
+            is_last_batch = (batch_idx == len(dataloader) - 1)
+            if (batch_idx % log_frequency == log_frequency-1 and len(recent_losses) > 0) or is_last_batch:
                 avg_loss = sum(recent_losses)/len(recent_losses)
                 logging.info('Epoch : %d Minibatch : %d Loss : %.5f' % (
                     epoch_idx, batch_idx, avg_loss)
                 )
                 if signal == TrainSignal.SUPERVISED:
-                    writer.add_scalar('train/loss', avg_loss, batch_idx)
+                    writer.add_scalar('train_avg/loss', avg_loss, step)
                 elif signal == TrainSignal.RL or signal == TrainSignal.BEAM_RL:
-                    writer.add_scalar('train/reward', avg_loss, batch_idx)
+                    writer.add_scalar('train_avg/reward', avg_loss, step)
 
                 losses.extend(recent_losses)
                 recent_losses = []
@@ -392,6 +407,7 @@ def train_seq2seq_model(
                                      out_path, 100, 50, batch_size,
                                      use_cuda, False)
             logging.info("Epoch : %d ValidationAccuracy : %f." % (epoch_idx, val_acc))
+            writer.add_scalar('val/accuracy', val_acc, epoch_idx)
             if val_acc > best_val_acc:
                 logging.info("Epoch : %d ValidationBest : %f." % (epoch_idx, val_acc))
                 best_val_acc = val_acc

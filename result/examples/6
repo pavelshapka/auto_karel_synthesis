@@ -1,0 +1,4 @@
+DEF run 
+    m( WHILE c( not c( leftIsClear c) c) 
+        w( move pickMarker w)
+    m)
