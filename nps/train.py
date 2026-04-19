@@ -12,6 +12,7 @@ import numpy as np
 
 from pathlib import Path
 from tqdm import tqdm
+from tensorboardX import SummaryWriter
 
 # Project imports
 from nps.data import load_input_file, get_minibatch, shuffle_dataset
@@ -170,6 +171,11 @@ def train_seq2seq_model(
     if not models_dir.exists():
         os.makedirs(str(models_dir))
         time.sleep(1)  # Let some time for the dir to be created
+    
+    run_dir = result_dir / "runs"
+    if not run_dir.exists():
+        os.makedirs(str(run_dir))
+    writer = SummaryWriter(log_dir=str(run_dir))
 
     #####################################
     # Load Model / Dataset / Vocabulary #
@@ -334,9 +340,15 @@ def train_seq2seq_model(
             optimizer.step()
             if (batch_idx % log_frequency == log_frequency-1 and len(recent_losses) > 0) or \
                (len(dataset["sources"]) - sp_idx ) < batch_size:
+                avg_loss = sum(recent_losses)/len(recent_losses)
                 logging.info('Epoch : %d Minibatch : %d Loss : %.5f' % (
-                    epoch_idx, batch_idx, sum(recent_losses)/len(recent_losses))
+                    epoch_idx, batch_idx, avg_loss)
                 )
+                if signal == TrainSignal.SUPERVISED:
+                    writer.add_scalar('train/loss', avg_loss, batch_idx)
+                elif signal == TrainSignal.RL or signal == TrainSignal.BEAM_RL:
+                    writer.add_scalar('train/reward', avg_loss, batch_idx)
+
                 losses.extend(recent_losses)
                 recent_losses = []
                 # Dump the training losses
